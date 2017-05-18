@@ -1,8 +1,425 @@
 {
   "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
   "contentVersion": "1.0.0.0",
-  "parameters": {},
-  "variables": {},
-  "resources": [],
+  "parameters": {
+    "functionAppName": {
+      "type": "string",
+      "defaultValue": "jehollanTwitter"
+    },
+    "functionName": {
+      "type": "string",
+      "defaultValue":  "listKeyPhrases"
+    },
+    "teams_1_Connection_Name": {
+      "type": "string",
+      "defaultValue": "teams"
+    },
+    "teams_1_Connection_DisplayName": {
+      "type": "string",
+      "defaultValue": "jehollan@microsoft.com"
+    },
+    "cognitiveservicestextanalytics_1_Connection_Name": {
+      "type": "string",
+      "defaultValue": "cognitiveservicestextanalytics-1"
+    },
+    "cognitiveservicestextanalytics_1_Connection_DisplayName": {
+      "type": "string",
+      "defaultValue": "cognitive"
+    },
+    "cognitiveservicestextanalytics_1_apiKey": {
+      "type": "securestring",
+      "metadata": {
+        "description": "Cognitive Services Account Key"
+      }
+    },
+    "dynamicscrmonline_1_Connection_Name": {
+      "type": "string",
+      "defaultValue": "dynamicscrmonline"
+    },
+    "dynamicscrmonline_1_Connection_DisplayName": {
+      "type": "string",
+      "defaultValue": "jehollan@microsoft.com"
+    },
+    "powerbi_1_Connection_Name": {
+      "type": "string",
+      "defaultValue": "powerbi-1"
+    },
+    "powerbi_1_Connection_DisplayName": {
+      "type": "string",
+      "defaultValue": "chlama@microsoft.com"
+    },
+    "twitter_1_Connection_Name": {
+      "type": "string",
+      "defaultValue": "twitter-1"
+    },
+    "twitter_1_Connection_DisplayName": {
+      "type": "string",
+      "defaultValue": "clamanna"
+    }
+  },
+  "variables": {
+    "repoUrl": "https://github.com/jeffhollan/twitteranalysiscrm.git",
+    "branch": "master",
+    "hostingPlanName": "[parameters('functionAppName')]",
+    "storageAccountName": "[concat(uniquestring(resourceGroup().id), 'azfunctions')]",
+    "storageACcountid": "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]",
+    "LogicAppLocation": "[resourceGroup().location]",
+    "storageAccountType": "Standard_LRS"
+  },
+  "resources": [
+    {
+      "properties": {
+        "state": "Enabled",
+        "definition": {
+          "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+          "actions": {
+            "Add_rows_to_a_dataset": {
+              "type": "ApiConnection",
+              "inputs": {
+                "host": {
+                  "connection": {
+                    "name": "@parameters('$connections')['powerbi']['connectionId']"
+                  }
+                },
+                "method": "post",
+                "path": "/v1.0/myorg/groups/@{encodeURIComponent('69fa87f7-6084-4928-9c08-61519b730031')}/datasets/@{encodeURIComponent('d84fa1f2-3479-48c9-a47a-75a03788b43a')}/tables/@{encodeURIComponent('RealTimeData')}/rows",
+                "body": {
+                  "Tweet Text": "@{triggerBody()?['TweetText']}",
+                  "Sentiment Score": "@{body('Detect_Sentiment')?['score']}",
+                  "Location": "@{triggerBody()?['UserDetails']?['Location']}",
+                  "Created At": "@{triggerBody()?['CreatedAtIso']}",
+                  "Key Phrases": "@{body('Function_to_Analyze_Phrases')}"
+                }
+              },
+              "runAfter": {
+                "Function_to_Analyze_Phrases": [
+                  "Succeeded"
+                ]
+              }
+            },
+            "Condition_to_Notify_Teams": {
+              "type": "If",
+              "expression": "@less(body('Detect_Sentiment')?['score'], 0.3)",
+              "actions": {
+                "Alert_the_team": {
+                  "type": "ApiConnection",
+                  "inputs": {
+                    "host": {
+                      "connection": {
+                        "name": "@parameters('$connections')['teams']['connectionId']"
+                      }
+                    },
+                    "method": "post",
+                    "path": "/beta/groups/@{encodeURIComponent('02ed847d-d79d-43e5-b493-1e6282555ff7')}/channels/@{encodeURIComponent('15d1d016-9ad4-4f1d-9c22-14f72d7d4815')}/chatThreads",
+                    "body": {
+                      "rootMessage": {
+                        "body": {
+                          "content": "Negative Tweet (Score: @{body('Detect_Sentiment')?['score']}) -- @{triggerBody()?['TweetText']}"
+                        }
+                      }
+                    }
+                  },
+                  "runAfter": {}
+                },
+                "Create_a_new_case_in_Dynamics_365": {
+                  "type": "ApiConnection",
+                  "inputs": {
+                    "host": {
+
+                      "connection": {
+                        "name": "@parameters('$connections')['dynamicscrmonline_1']['connectionId']"
+                      }
+                    },
+                    "method": "post",
+                    "path": "/datasets/@{encodeURIComponent(encodeURIComponent('powerappsmsitdemo2.crm'))}/tables/@{encodeURIComponent(encodeURIComponent('incidents'))}/items",
+                    "body": {
+                      "title": "[Negative Tweet] Score @{body('Detect_Sentiment')?['score']} and key phrases @{body('Function_to_Analyze_Phrases')} - Tweeted by @{triggerBody()?['TweetedBy']}",
+                      "description": "Tweet text: @{triggerBody()?['TweetText']}",
+                      "_customerid_value": "B5D8F2E3-2BEA-E611-80F4-C4346BACEB40",
+                      "_customerid_type": "accounts"
+                    }
+                  },
+                  "runAfter": {
+                    "Alert_the_team": [
+                      "Succeeded"
+                    ]
+                  }
+                }
+              },
+              "runAfter": {
+                "Add_rows_to_a_dataset": [
+                  "Succeeded"
+                ]
+              }
+            },
+            "Detect_Sentiment": {
+              "type": "ApiConnection",
+              "inputs": {
+                "host": {
+                  "connection": {
+                    "name": "@parameters('$connections')['cognitiveservicestextanalytics']['connectionId']"
+                  }
+                },
+                "method": "post",
+                "path": "/sentiment",
+                "body": {
+                  "text": "@{triggerBody()?['TweetText']}"
+                }
+              },
+              "runAfter": {}
+            },
+            "Function_to_Analyze_Phrases": {
+              "type": "Function",
+              "inputs": {
+                "body": {
+                  "phrases": "@body('Key_Phrases')?['keyPhrases']"
+                },
+                "function": {
+                  "id": "[resourceId('Microsoft.Web/sites/functions', parameters('functionAppName'), parameters('functionName'))]"
+                }
+              },
+              "runAfter": {
+                "Key_Phrases": [
+                  "Succeeded"
+                ]
+              }
+            },
+            "Key_Phrases": {
+              "type": "ApiConnection",
+              "inputs": {
+                "host": {
+                  "connection": {
+                    "name": "@parameters('$connections')['cognitiveservicestextanalytics']['connectionId']"
+                  }
+                },
+                "method": "post",
+                "path": "/keyPhrases",
+                "body": {
+                  "text": "@{triggerBody()?['TweetText']}"
+                }
+              },
+              "runAfter": {
+                "Detect_Sentiment": [
+                  "Succeeded"
+                ]
+              }
+            }
+          },
+          "parameters": {
+            "$connections": {
+              "defaultValue": {},
+              "type": "Object"
+            }
+          },
+          "triggers": {
+            "When_a_new_tweet_is_posted": {
+              "type": "ApiConnection",
+              "inputs": {
+                "host": {
+                  "connection": {
+                    "name": "@parameters('$connections')['twitter']['connectionId']"
+                  }
+                },
+                "method": "get",
+                "path": "/onnewtweet",
+                "queries": {
+                  "searchQuery": "#Azure"
+                }
+              },
+              "recurrence": {
+                "frequency": "Second",
+                "interval": 15
+              },
+              "splitOn": "@triggerBody()?.value"
+            }
+          },
+          "contentVersion": "1.0.0.0",
+          "outputs": {}
+        },
+        "parameters": {
+          "$connections": {
+            "value": {
+              "powerbi": {
+                "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', 'westcentralus', '/managedApis/', 'powerbi')]",
+                "connectionId": "[resourceId('Microsoft.Web/connections', parameters('powerbi_1_Connection_Name'))]",
+                "connectionName": "[parameters('powerbi_1_Connection_Name')]"
+              },
+              "teams": {
+                "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', 'westcentralus', '/managedApis/', 'teams')]",
+                "connectionId": "[resourceId('Microsoft.Web/connections', parameters('teams_1_Connection_Name'))]",
+                "connectionName": "[parameters('teams_1_Connection_Name')]"
+              },
+              "dynamicscrmonline_1": {
+                "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', 'westcentralus', '/managedApis/', 'dynamicscrmonline')]",
+                "connectionId": "[resourceId('Microsoft.Web/connections', parameters('dynamicscrmonline_1_Connection_Name'))]",
+                "connectionName": "[parameters('dynamicscrmonline_1_Connection_Name')]"
+              },
+              "cognitiveservicestextanalytics": {
+                "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', 'westcentralus', '/managedApis/', 'cognitiveservicestextanalytics')]",
+                "connectionId": "[resourceId('Microsoft.Web/connections', parameters('cognitiveservicestextanalytics_1_Connection_Name'))]",
+                "connectionName": "[parameters('cognitiveservicestextanalytics_1_Connection_Name')]"
+              },
+              "twitter": {
+                "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', 'westcentralus', '/managedApis/', 'twitter')]",
+                "connectionId": "[resourceId('Microsoft.Web/connections', parameters('twitter_1_Connection_Name'))]",
+                "connectionName": "[parameters('twitter_1_Connection_Name')]"
+              }
+            }
+          }
+        }
+      },
+      "name": "Twitter-Analysis-Logic-CRM",
+      "type": "Microsoft.Logic/workflows",
+      "location": "westcentralus",
+      "apiVersion": "2016-06-01",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/connections', parameters('powerbi_1_Connection_Name'))]",
+        "[resourceId('Microsoft.Web/connections', parameters('teams_1_Connection_Name'))]",
+        "[resourceId('Microsoft.Web/connections', parameters('dynamicscrmonline_1_Connection_Name'))]",
+        "[resourceId('Microsoft.Web/connections', parameters('cognitiveservicestextanalytics_1_Connection_Name'))]",
+        "[resourceId('Microsoft.Web/connections', parameters('twitter_1_Connection_Name'))]"
+      ]
+    },
+    {
+      "type": "MICROSOFT.WEB/CONNECTIONS",
+      "apiVersion": "2016-06-01",
+      "name": "[parameters('teams_1_Connection_Name')]",
+      "location": "westcentralus",
+      "properties": {
+        "api": {
+          "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', 'westcentralus', '/managedApis/', 'teams')]"
+        },
+        "displayName": "[parameters('teams_1_Connection_DisplayName')]"
+      }
+    },
+    {
+      "type": "MICROSOFT.WEB/CONNECTIONS",
+      "apiVersion": "2016-06-01",
+      "name": "[parameters('cognitiveservicestextanalytics_1_Connection_Name')]",
+      "location": "westcentralus",
+      "properties": {
+        "api": {
+          "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', 'westcentralus', '/managedApis/', 'cognitiveservicestextanalytics')]"
+        },
+        "displayName": "[parameters('cognitiveservicestextanalytics_1_Connection_DisplayName')]",
+        "parameterValues": {
+          "apiKey": "[parameters('cognitiveservicestextanalytics_1_apiKey')]"
+        }
+      }
+    },
+    {
+      "type": "MICROSOFT.WEB/CONNECTIONS",
+      "apiVersion": "2016-06-01",
+      "name": "[parameters('dynamicscrmonline_1_Connection_Name')]",
+      "location": "westcentralus",
+      "properties": {
+        "api": {
+          "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', 'westcentralus', '/managedApis/', 'dynamicscrmonline')]"
+        },
+        "displayName": "[parameters('dynamicscrmonline_1_Connection_DisplayName')]"
+      }
+    },
+    {
+      "type": "MICROSOFT.WEB/CONNECTIONS",
+      "apiVersion": "2016-06-01",
+      "name": "[parameters('powerbi_1_Connection_Name')]",
+      "location": "westcentralus",
+      "properties": {
+        "api": {
+          "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', 'westcentralus', '/managedApis/', 'powerbi')]"
+        },
+        "displayName": "[parameters('powerbi_1_Connection_DisplayName')]"
+      }
+    },
+    {
+      "type": "MICROSOFT.WEB/CONNECTIONS",
+      "apiVersion": "2016-06-01",
+      "name": "[parameters('twitter_1_Connection_Name')]",
+      "location": "westcentralus",
+      "properties": {
+        "api": {
+          "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', 'westcentralus', '/managedApis/', 'twitter')]"
+        },
+        "displayName": "[parameters('twitter_1_Connection_DisplayName')]"
+      }
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts",
+      "name": "[variables('storageAccountName')]",
+      "apiVersion": "2015-06-15",
+      "location": "[resourceGroup().location]",
+      "properties": {
+        "accountType": "[variables('storageAccountType')]"
+      }
+    },
+    {
+      "type": "Microsoft.Web/serverfarms",
+      "apiVersion": "2015-04-01",
+      "name": "[variables('hostingPlanName')]",
+      "location": "[resourceGroup().location]",
+      "properties": {
+        "name": "[variables('hostingPlanName')]",
+        "computeMode": "Dynamic",
+        "sku": "Dynamic"
+      }
+    },
+    {
+      "apiVersion": "2015-08-01",
+      "type": "Microsoft.Web/sites",
+      "name": "[parameters('functionAppName')]",
+      "location": "[resourceGroup().location]",
+      "kind": "functionapp",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/serverfarms', variables('hostingPlanName'))]",
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+      ],
+      "properties": {
+        "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('hostingPlanName'))]",
+        "siteConfig": {
+          "appSettings": [
+            {
+              "name": "AzureWebJobsDashboard",
+              "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('storageAccountName'), ';AccountKey=', listKeys(variables('storageAccountid'),'2015-05-01-preview').key1)]"
+            },
+            {
+              "name": "AzureWebJobsStorage",
+              "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('storageAccountName'), ';AccountKey=', listKeys(variables('storageAccountid'),'2015-05-01-preview').key1)]"
+            },
+            {
+              "name": "WEBSITE_CONTENTAZUREFILECONNECTIONSTRING",
+              "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('storageAccountName'), ';AccountKey=', listKeys(variables('storageAccountid'),'2015-05-01-preview').key1)]"
+            },
+            {
+              "name": "WEBSITE_CONTENTSHARE",
+              "value": "[toLower(parameters('functionAppName'))]"
+            },
+            {
+              "name": "FUNCTIONS_EXTENSION_VERSION",
+              "value": "~1"
+            },
+            {
+              "name": "WEBSITE_NODE_DEFAULT_VERSION",
+              "value": "6.5.0"
+            }
+          ]
+        }
+      },
+      "resources": [
+        {
+          "apiVersion": "2015-08-01",
+          "name": "web",
+          "type": "sourcecontrols",
+          "dependsOn": [
+            "[resourceId('Microsoft.Web/Sites', parameters('functionAppName'))]"
+          ],
+          "properties": {
+            "RepoUrl": "[variables('repoURL')]",
+            "branch": "[variables('branch')]",
+            "IsManualIntegration": true
+          }
+        }
+      ]
+    }
+  ],
   "outputs": {}
 }
