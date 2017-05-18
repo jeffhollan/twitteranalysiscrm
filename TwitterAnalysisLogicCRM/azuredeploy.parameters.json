@@ -2,5 +2,11 @@
   "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
   "contentVersion": "1.0.0.0",
   "parameters": {
+    "functionAppName": {
+      "value": "jehollanTwitter125821"
+    },
+    "cognitiveservicestextanalytics_1_apiKey": {
+      "value": "1c1a0c080a66484c9650095b9791f804"
+    }
   }
 }

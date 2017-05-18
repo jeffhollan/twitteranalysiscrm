@@ -240,27 +240,27 @@
           "$connections": {
             "value": {
               "powerbi": {
-                "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', 'westcentralus', '/managedApis/', 'powerbi')]",
+                "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/', 'powerbi')]",
                 "connectionId": "[resourceId('Microsoft.Web/connections', parameters('powerbi_1_Connection_Name'))]",
                 "connectionName": "[parameters('powerbi_1_Connection_Name')]"
               },
               "teams": {
-                "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', 'westcentralus', '/managedApis/', 'teams')]",
+                "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/', 'teams')]",
                 "connectionId": "[resourceId('Microsoft.Web/connections', parameters('teams_1_Connection_Name'))]",
                 "connectionName": "[parameters('teams_1_Connection_Name')]"
               },
               "dynamicscrmonline_1": {
-                "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', 'westcentralus', '/managedApis/', 'dynamicscrmonline')]",
+                "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/', 'dynamicscrmonline')]",
                 "connectionId": "[resourceId('Microsoft.Web/connections', parameters('dynamicscrmonline_1_Connection_Name'))]",
                 "connectionName": "[parameters('dynamicscrmonline_1_Connection_Name')]"
               },
               "cognitiveservicestextanalytics": {
-                "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', 'westcentralus', '/managedApis/', 'cognitiveservicestextanalytics')]",
+                "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/', 'cognitiveservicestextanalytics')]",
                 "connectionId": "[resourceId('Microsoft.Web/connections', parameters('cognitiveservicestextanalytics_1_Connection_Name'))]",
                 "connectionName": "[parameters('cognitiveservicestextanalytics_1_Connection_Name')]"
               },
               "twitter": {
-                "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', 'westcentralus', '/managedApis/', 'twitter')]",
+                "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/', 'twitter')]",
                 "connectionId": "[resourceId('Microsoft.Web/connections', parameters('twitter_1_Connection_Name'))]",
                 "connectionName": "[parameters('twitter_1_Connection_Name')]"
               }
@@ -270,7 +270,7 @@
       },
       "name": "Twitter-Analysis-Logic-CRM",
       "type": "Microsoft.Logic/workflows",
-      "location": "westcentralus",
+      "location": "[resourceGroup().location]",
       "apiVersion": "2016-06-01",
       "dependsOn": [
         "[resourceId('Microsoft.Web/connections', parameters('powerbi_1_Connection_Name'))]",
@@ -284,10 +284,10 @@
       "type": "MICROSOFT.WEB/CONNECTIONS",
       "apiVersion": "2016-06-01",
       "name": "[parameters('teams_1_Connection_Name')]",
-      "location": "westcentralus",
+      "location": "[resourceGroup().location]",
       "properties": {
         "api": {
-          "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', 'westcentralus', '/managedApis/', 'teams')]"
+          "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/', 'teams')]"
         },
         "displayName": "[parameters('teams_1_Connection_DisplayName')]"
       }
@@ -296,10 +296,10 @@
       "type": "MICROSOFT.WEB/CONNECTIONS",
       "apiVersion": "2016-06-01",
       "name": "[parameters('cognitiveservicestextanalytics_1_Connection_Name')]",
-      "location": "westcentralus",
+      "location": "[resourceGroup().location]",
       "properties": {
         "api": {
-          "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', 'westcentralus', '/managedApis/', 'cognitiveservicestextanalytics')]"
+          "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/', 'cognitiveservicestextanalytics')]"
         },
         "displayName": "[parameters('cognitiveservicestextanalytics_1_Connection_DisplayName')]",
         "parameterValues": {
@@ -311,10 +311,10 @@
       "type": "MICROSOFT.WEB/CONNECTIONS",
       "apiVersion": "2016-06-01",
       "name": "[parameters('dynamicscrmonline_1_Connection_Name')]",
-      "location": "westcentralus",
+      "location": "[resourceGroup().location]",
       "properties": {
         "api": {
-          "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', 'westcentralus', '/managedApis/', 'dynamicscrmonline')]"
+          "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/', 'dynamicscrmonline')]"
         },
         "displayName": "[parameters('dynamicscrmonline_1_Connection_DisplayName')]"
       }
@@ -323,10 +323,10 @@
       "type": "MICROSOFT.WEB/CONNECTIONS",
       "apiVersion": "2016-06-01",
       "name": "[parameters('powerbi_1_Connection_Name')]",
-      "location": "westcentralus",
+      "location": "[resourceGroup().location]",
       "properties": {
         "api": {
-          "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', 'westcentralus', '/managedApis/', 'powerbi')]"
+          "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/', 'powerbi')]"
         },
         "displayName": "[parameters('powerbi_1_Connection_DisplayName')]"
       }
@@ -335,10 +335,10 @@
       "type": "MICROSOFT.WEB/CONNECTIONS",
       "apiVersion": "2016-06-01",
       "name": "[parameters('twitter_1_Connection_Name')]",
-      "location": "westcentralus",
+      "location": "[resourceGroup().location]",
       "properties": {
         "api": {
-          "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', 'westcentralus', '/managedApis/', 'twitter')]"
+          "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/', 'twitter')]"
         },
         "displayName": "[parameters('twitter_1_Connection_DisplayName')]"
       }
